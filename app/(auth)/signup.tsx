@@ -24,7 +24,10 @@ export default function SignupScreen() {
   const [code, setCode] = useState('');
 
   const handleSignup = useCallback(async () => {
-    if (!isLoaded || !signUp) return;
+    if (!signUp) {
+      Alert.alert('Loading', 'Please wait, authentication is still loading...');
+      return;
+    }
     if (!email || !password) {
       Alert.alert('Missing Info', 'Please enter email and password.');
       return;
@@ -32,26 +35,42 @@ export default function SignupScreen() {
 
     setLoading(true);
     try {
-      await signUp.create({
+      console.log('signUp methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(signUp)));
+      console.log('signUp keys:', Object.keys(signUp));
+      const created = await signUp.create({
         emailAddress: email,
         password,
         firstName: name.split(' ')[0] || undefined,
         lastName: name.split(' ').slice(1).join(' ') || undefined,
       });
 
-      // Send email verification code
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      console.log('created result:', JSON.stringify(created, null, 2));
+      console.log('created methods:', created ? Object.getOwnPropertyNames(Object.getPrototypeOf(created)) : 'null');
+      
+      // Try the verification
+      if (created?.prepareVerification) {
+        await created.prepareVerification({ strategy: 'email_code' });
+      } else if (created?.prepareEmailAddressVerification) {
+        await created.prepareEmailAddressVerification({ strategy: 'email_code' });
+      } else if (signUp?.prepareVerification) {
+        await signUp.prepareVerification({ strategy: 'email_code' });
+      } else if (signUp?.prepareEmailAddressVerification) {
+        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      } else {
+        Alert.alert('Debug', 'No verification method found. Check Metro logs.');
+      }
       setPendingVerification(true);
     } catch (err: any) {
+      console.log('Signup error:', err);
       const message = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err?.message || 'Sign up failed. Please try again.';
       Alert.alert('Sign Up Error', message);
     } finally {
       setLoading(false);
     }
-  }, [isLoaded, signUp, email, password, name]);
+  }, [signUp, email, password, name]);
 
   const handleVerification = useCallback(async () => {
-    if (!isLoaded || !signUp) return;
+    if (!signUp) return;
     if (!code) {
       Alert.alert('Missing Code', 'Please enter the verification code from your email.');
       return;
@@ -59,7 +78,7 @@ export default function SignupScreen() {
 
     setLoading(true);
     try {
-      const result = await signUp.attemptEmailAddressVerification({ code });
+      const result = await signUp.attemptVerification({ strategy: 'email_code', code });
 
       if (result.status === 'complete' && result.createdSessionId) {
         await setActive({ session: result.createdSessionId });
@@ -83,7 +102,7 @@ export default function SignupScreen() {
     >
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
             <View 
               style={[styles.formCard, { backgroundColor: isDark ? 'rgba(30, 30, 45, 0.85)' : 'rgba(255, 255, 255, 0.95)' }]}
             >
@@ -179,7 +198,7 @@ export default function SignupScreen() {
                     style={styles.resendBtn}
                     onPress={async () => {
                       try {
-                        await signUp?.prepareEmailAddressVerification({ strategy: 'email_code' });
+                        await signUp?.prepareVerification({ strategy: 'email_code' });
                         Alert.alert('Code Sent', 'A new verification code has been sent to your email.');
                       } catch (err: any) {
                         Alert.alert('Error', 'Failed to resend code.');

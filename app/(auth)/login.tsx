@@ -14,7 +14,7 @@ const { width } = Dimensions.get('window');
 export default function LoginScreen() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
-  const { signIn, isLoaded } = useSignIn();
+  const { signIn, isLoaded, setActive } = useSignIn();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,7 +23,7 @@ export default function LoginScreen() {
 
 
   const handleLogin = useCallback(async () => {
-    if (!isLoaded || !signIn) return;
+    if (!signIn) return;
     if (!email || !password) {
       Alert.alert('Missing Info', 'Please enter both email and password.');
       return;
@@ -37,8 +37,7 @@ export default function LoginScreen() {
       });
 
       if (result.status === 'complete') {
-        await signIn.setActive({ session: result.createdSessionId });
-        // AuthRedirect in root layout handles navigation
+        await setActive({ session: result.createdSessionId });
       } else {
         Alert.alert('Sign In', 'Additional verification may be required.');
       }
@@ -48,7 +47,7 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
-  }, [isLoaded, signIn, email, password]);
+  }, [signIn, setActive, email, password]);
 
   return (
     <LinearGradient
@@ -60,7 +59,7 @@ export default function LoginScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
         >
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
             
             {/* Logo & Branding */}
             <View style={styles.branding}>

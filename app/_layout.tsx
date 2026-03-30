@@ -17,15 +17,15 @@ if (!publishableKey) {
 }
 
 function AuthRedirect({ children }: { children: React.ReactNode }) {
-  const { isSignedIn, isLoaded, userId } = useAuth();
+  const { isSignedIn, userId } = useAuth();
   const segments = useSegments();
   const router = useRouter();
   const rootNavigationState = useRootNavigationState();
   const { colors } = useTheme();
 
   useEffect(() => {
-    // Only fire the redirect if both Clerk and the Navigation Root are fully mounted
-    if (!isLoaded || !rootNavigationState?.key) return;
+    // Only fire if navigation is ready and auth state is determined
+    if (isSignedIn === undefined || !rootNavigationState?.key) return;
 
     const inAuthGroup = segments[0] === '(auth)';
 
@@ -49,9 +49,9 @@ function AuthRedirect({ children }: { children: React.ReactNode }) {
         router.replace('/(auth)/login');
       }
     }
-  }, [isSignedIn, isLoaded, segments, userId, rootNavigationState?.key]);
+  }, [isSignedIn, segments, userId, rootNavigationState?.key]);
 
-  if (!isLoaded) {
+  if (isSignedIn === undefined) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
         <ActivityIndicator size="large" color={colors.primary} />
