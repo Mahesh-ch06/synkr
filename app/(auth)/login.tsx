@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useSignIn } from '@clerk/expo';
+import { useSignIn, useClerk } from '@clerk/expo';
 import { useTheme } from '../../hooks/useTheme';
 import { Theme } from '../../constants/theme';
 import { InputField } from '../../components/ui/SharedComponents';
@@ -14,7 +14,8 @@ const { width } = Dimensions.get('window');
 export default function LoginScreen() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
-  const { signIn, isLoaded, setActive } = useSignIn();
+  const { signIn, isLoaded } = useSignIn();
+  const { setActive } = useClerk();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,13 +37,33 @@ export default function LoginScreen() {
         password,
       });
 
-      if (result.status === 'complete') {
-        await setActive({ session: result.createdSessionId });
+      console.log('Login result payload:', JSON.stringify(result, null, 2));
+      console.log('signIn status:', signIn.status);
+
+      // Check the signIn object instead of result, as result might just be { error: null }
+      if (signIn.status === 'complete' && signIn.createdSessionId) {
+        if (typeof setActive === 'function') {
+          await setActive({ session: signIn.createdSessionId });
+        } else {
+          router.replace('/(tabs)');
+        }
+      } else if (signIn.status === 'needs_first_factor') {
+        Alert.alert('Unverified Account', 'You never finished verifying your email! Please check your email for a code or create a new account and complete the verification step.');
       } else {
-        Alert.alert('Sign In', 'Additional verification may be required.');
+        Alert.alert('Sign In', `Status: ${signIn.status}. Additional verification required.`);
       }
     } catch (err: any) {
-      const message = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err?.message || 'Sign in failed. Please try again.';
+      const code = err?.errors?.[0]?.code;
+      if (code === 'session_exists') {
+        router.replace('/(tabs)');
+        return;
+      }
+      
+      let message = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err?.message || 'Sign in failed. Please try again.';
+      if (code === 'form_password_incorrect') {
+         message = 'You have entered the wrong password. Please try again.';
+      }
+      
       Alert.alert('Sign In Error', message);
     } finally {
       setLoading(false);

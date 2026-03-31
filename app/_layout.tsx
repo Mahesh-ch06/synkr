@@ -24,6 +24,7 @@ function AuthRedirect({ children }: { children: React.ReactNode }) {
   const { colors } = useTheme();
 
   useEffect(() => {
+    console.log('AuthRedirect Check:', { isSignedIn, userId, navKey: rootNavigationState?.key, inAuthGroup: segments[0] === '(auth)' });
     // Only fire if navigation is ready and auth state is determined
     if (isSignedIn === undefined || !rootNavigationState?.key) return;
 
@@ -50,14 +51,6 @@ function AuthRedirect({ children }: { children: React.ReactNode }) {
       }
     }
   }, [isSignedIn, segments, userId, rootNavigationState?.key]);
-
-  if (isSignedIn === undefined) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
 
   return <>{children}</>;
 }

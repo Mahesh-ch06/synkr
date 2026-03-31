@@ -1,0 +1,26 @@
+{
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_bWFnbmV0aWMtbWFuYXRlZS03NS5jbGVyay5hY2NvdW50cy5kZXYk",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://kmaijakhqzmvzhgeeypk.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttYWlqYWtocXptdnpoZ2VleXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4ODI0NjAsImV4cCI6MjA5MDQ1ODQ2MH0.yAOf-3bGo0AZzYQEDxVDGcXG3W55M846ZbmafsOWQEM"
+      }
+    },
+    "production": {}
+  },
+  "submit": {
+    "production": {}
+  }
+}

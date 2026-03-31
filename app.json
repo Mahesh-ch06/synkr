@@ -21,8 +21,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f0c29"
       },
-      "package": "com.synkr.app",
-      "newArchEnabled": false
+      "package": "com.synkr.app"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -31,7 +30,25 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-secure-store"
-    ]
+      "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "packagingOptions": {
+              "pickFirst": [
+                "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+              ]
+            }
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "06d7480a-1aa7-45d5-9df9-47de94d215da"
+      }
+    }
   }
 }

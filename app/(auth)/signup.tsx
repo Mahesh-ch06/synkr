@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useSignUp } from '@clerk/expo';
+import { useAuth, useClerk, useSignUp } from '@clerk/expo';
 import { useTheme } from '../../hooks/useTheme';
 import { Theme } from '../../constants/theme';
 import { InputField } from '../../components/ui/SharedComponents';
@@ -12,7 +12,8 @@ import { InputField } from '../../components/ui/SharedComponents';
 export default function SignupScreen() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
-  const { signUp, isLoaded, setActive } = useSignUp();
+  const { signUp, isLoaded } = useSignUp();
+  const { setActive } = useClerk();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -35,30 +36,26 @@ export default function SignupScreen() {
 
     setLoading(true);
     try {
-      console.log('signUp methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(signUp)));
-      console.log('signUp keys:', Object.keys(signUp));
-      const created = await signUp.create({
+      await signUp.create({
         emailAddress: email,
         password,
         firstName: name.split(' ')[0] || undefined,
         lastName: name.split(' ').slice(1).join(' ') || undefined,
       });
 
-      console.log('created result:', JSON.stringify(created, null, 2));
-      console.log('created methods:', created ? Object.getOwnPropertyNames(Object.getPrototypeOf(created)) : 'null');
-      
-      // Try the verification
-      if (created?.prepareVerification) {
-        await created.prepareVerification({ strategy: 'email_code' });
-      } else if (created?.prepareEmailAddressVerification) {
-        await created.prepareEmailAddressVerification({ strategy: 'email_code' });
-      } else if (signUp?.prepareVerification) {
-        await signUp.prepareVerification({ strategy: 'email_code' });
-      } else if (signUp?.prepareEmailAddressVerification) {
-        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      if (typeof signUp.prepareEmailAddressVerification === 'function') {
+         console.log('Using prepareEmailAddressVerification');
+         await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      } else if (typeof signUp.prepareVerification === 'function') {
+         console.log('Using prepareVerification');
+         await signUp.prepareVerification({ strategy: 'email_code' });
+      } else if (typeof (signUp as any).sendEmailCode === 'function') {
+         console.log('Using sendEmailCode');
+         await (signUp as any).sendEmailCode();
       } else {
-        Alert.alert('Debug', 'No verification method found. Check Metro logs.');
+         throw new Error("No verification method found on signUp object");
       }
+      
       setPendingVerification(true);
     } catch (err: any) {
       console.log('Signup error:', err);
@@ -78,16 +75,47 @@ export default function SignupScreen() {
 
     setLoading(true);
     try {
-      const result = await signUp.attemptVerification({ strategy: 'email_code', code });
+      let result;
+      if (typeof signUp.attemptEmailAddressVerification === 'function') {
+        result = await signUp.attemptEmailAddressVerification({ code });
+      } else if (typeof signUp.attemptVerification === 'function') {
+        result = await signUp.attemptVerification({ strategy: 'email_code', code });
+      } else if (typeof (signUp as any).verifyEmailCode === 'function') {
+        result = await (signUp as any).verifyEmailCode({ code });
+        if (!result || !result.status) result = signUp;
+      } else {
+        throw new Error("No verification method found to submit code");
+      }
 
-      if (result.status === 'complete' && result.createdSessionId) {
-        await setActive({ session: result.createdSessionId });
+      console.log('Verification result status:', result?.status);
+      console.log('unverifiedFields:', result?.unverifiedFields);
+      console.log('missingFields:', result?.missingFields);
+
+      // Try finalize if status isn't complete but the method exists
+      if (result?.status !== 'complete' && typeof (signUp as any).finalize === 'function') {
+         console.log('Attempting signUp.finalize()...');
+         const finalResult = await (signUp as any).finalize();
+         if (finalResult && finalResult.status) {
+           result = finalResult;
+         }
+         console.log('Finalize result:', result?.status);
+      }
+
+      if (result?.status === 'complete' && result.createdSessionId) {
+        if (typeof setActive === 'function') {
+           await setActive({ session: result.createdSessionId });
+        } else {
+           console.log("fallback routing directly...");
+           router.replace('/(tabs)');
+        }
         // AuthRedirect in root layout handles navigation to /(tabs)
       } else {
-        // Force navigate — AuthRedirect will pick up the session
-        router.replace('/(tabs)');
+        const missing = result?.missingFields?.join(', ') || 'None';
+        const unverified = result?.unverifiedFields?.join(', ') || 'None';
+        Alert.alert('Verification incomplete', `Status: ${result?.status}\nMissing: ${missing}\nUnverified: ${unverified}\nCheck Clerk Dashboard Settings.`);
       }
     } catch (err: any) {
+      console.log('Verification catch block error:', err);
       const message = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err?.message || 'Verification failed. Please try again.';
       Alert.alert('Verification Error', message);
     } finally {
@@ -198,7 +226,13 @@ export default function SignupScreen() {
                     style={styles.resendBtn}
                     onPress={async () => {
                       try {
-                        await signUp?.prepareVerification({ strategy: 'email_code' });
+                        if (typeof signUp?.prepareEmailAddressVerification === 'function') {
+                          await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+                        } else if (typeof signUp?.prepareVerification === 'function') {
+                          await signUp.prepareVerification({ strategy: 'email_code' });
+                        } else if (typeof (signUp as any)?.sendEmailCode === 'function') {
+                          await (signUp as any).sendEmailCode();
+                        }
                         Alert.alert('Code Sent', 'A new verification code has been sent to your email.');
                       } catch (err: any) {
                         Alert.alert('Error', 'Failed to resend code.');
